@@ -1,0 +1,563 @@
+<title>Code Clicker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #e9ecf2;
+  --surface: #f7f8fb;
+  --surface-2: #dde2eb;
+  --ink: #1a2133;
+  --muted: #5d6881;
+  --line: #c9d0dd;
+  --accent: #0c7f82;
+  --accent-ink: #ffffff;
+  --gold: #b7791f;
+  --gold-bg: #fbeed3;
+  --editor-bg: #1c2230;
+  --editor-ink: #d7deea;
+  --editor-dim: #6d7892;
+  --kw: #7fd6d8;
+  --str: #f2c14e;
+  --fn: #b7a6ff;
+  --display: "Martian Mono", "JetBrains Mono", ui-monospace, monospace;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #11151d; --surface: #181e29; --surface-2: #222a38; --ink: #e3e8f1;
+    --muted: #8b96ad; --line: #2c3547; --accent: #3fbfc2; --accent-ink: #0b1b1c;
+    --gold: #f2c14e; --gold-bg: #3a2f16; --editor-bg: #0b0e14; --editor-ink: #d7deea;
+    --editor-dim: #5a6479;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #11151d; --surface: #181e29; --surface-2: #222a38; --ink: #e3e8f1;
+  --muted: #8b96ad; --line: #2c3547; --accent: #3fbfc2; --accent-ink: #0b1b1c;
+  --gold: #f2c14e; --gold-bg: #3a2f16; --editor-bg: #0b0e14; --editor-ink: #d7deea;
+  --editor-dim: #5a6479;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body);
+  padding-inline: 16px; padding-block: 20px 40px;
+}
+.wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+h1 { font: 800 1.1rem/1 var(--display); letter-spacing: -0.02em; margin: 0; }
+h1 span { color: var(--accent); }
+.hdr-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+h2 {
+  font: 700 0.72rem/1 var(--display); text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); margin: 0;
+}
+.game { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .game { grid-template-columns: 1fr; } }
+.col { display: grid; gap: 20px; min-width: 0; }
+
+/* Counter */
+.counter { display: grid; gap: 4px; }
+.count {
+  font: 800 clamp(2rem, 6vw, 3.4rem)/1.05 var(--display); letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.count small { font: 600 0.9rem var(--body); letter-spacing: 0; color: var(--muted); margin-left: 6px; }
+.rates { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font: 0.85rem var(--mono); font-variant-numeric: tabular-nums; }
+.rates b { color: var(--ink); font-weight: 600; }
+.stars-chip {
+  display: inline-flex; gap: 6px; align-items: center; padding: 2px 10px; border-radius: 999px;
+  background: var(--gold-bg); color: var(--gold); font: 600 0.8rem var(--mono);
+}
+
+/* Editor: the click target */
+.editor {
+  position: relative; background: var(--editor-bg); color: var(--editor-ink); border-radius: 10px;
+  font: 13px/1.6 var(--mono); cursor: pointer; user-select: none; overflow: hidden;
+  border: 1px solid var(--line); outline: none; -webkit-tap-highlight-color: transparent;
+}
+.editor:focus-visible { box-shadow: 0 0 0 3px var(--accent); }
+.editor:active .code { transform: translateY(1px); }
+.tabbar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #ffffff14; font-size: 12px; color: var(--editor-dim); }
+.tabbar .file { color: var(--editor-ink); }
+.tabbar .hint { margin-left: auto; }
+.code { padding: 12px 14px 14px 0; height: 17.5em; overflow: hidden; display: grid; align-content: end; transition: transform 60ms; }
+.ln { display: grid; grid-template-columns: 3.4em 1fr; white-space: pre; }
+.ln i { font-style: normal; color: var(--editor-dim); text-align: right; padding-right: 1em; }
+.ln span { overflow: hidden; text-overflow: clip; }
+.caret { display: inline-block; width: 0.55em; height: 1.1em; background: var(--kw); vertical-align: -0.2em; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.kw { color: var(--kw); } .str { color: var(--str); } .fn { color: var(--fn); } .cm { color: var(--editor-dim); }
+.float {
+  position: absolute; pointer-events: none; font: 700 14px var(--display); color: var(--str);
+  animation: rise 0.9s ease-out forwards; white-space: nowrap;
+}
+@keyframes rise { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -48px); } }
+
+/* Panels */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: transparent; padding: 4px 10px; font: 600 0.75rem var(--mono); color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+
+button {
+  font: inherit; cursor: pointer; border-radius: 7px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); padding: 6px 12px;
+}
+button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button:disabled { cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+.btn-primary:disabled { background: var(--surface-2); color: var(--muted); }
+.btn-ghost { background: transparent; color: var(--muted); font-size: 0.85rem; }
+
+/* Generators */
+.gens { display: grid; gap: 8px; }
+.gen {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; text-align: left;
+  padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; width: 100%;
+}
+.gen:not(:disabled):hover { border-color: var(--accent); }
+.gen:disabled { opacity: 0.55; }
+.gen.locked { opacity: 0.4; }
+.gen-name { font-weight: 600; }
+.gen-owned { font: 800 1.3rem/1 var(--display); grid-row: span 2; align-self: center; font-variant-numeric: tabular-nums; }
+.gen-meta { font: 0.78rem var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.gen-meta .cost { color: var(--ink); font-weight: 600; }
+.gen.affordable .cost { color: var(--accent); }
+
+/* Upgrades */
+.ups { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.up { text-align: left; display: grid; gap: 2px; padding: 10px 12px; }
+.up:not(:disabled):hover { border-color: var(--accent); }
+.up:disabled { opacity: 0.55; }
+.up-name { font-weight: 600; font-size: 0.9rem; }
+.up-desc { font-size: 0.8rem; color: var(--muted); }
+.up-cost { font: 600 0.78rem var(--mono); }
+.up.affordable .up-cost { color: var(--accent); }
+.empty { color: var(--muted); font-size: 0.85rem; margin: 0; grid-column: 1 / -1; }
+.owned-ups { display: flex; flex-wrap: wrap; gap: 6px; }
+.owned-ups span { font: 0.72rem var(--mono); padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+
+/* Ship */
+.ship { display: grid; gap: 10px; }
+.ship p { margin: 0; color: var(--muted); font-size: 0.88rem; max-width: 60ch; }
+.meter { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.meter div { height: 100%; background: var(--gold); width: 0; transition: width 200ms; }
+.confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.88rem; }
+.stats { font: 0.78rem var(--mono); color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 18px; font-variant-numeric: tabular-nums; }
+.toast { min-height: 1.4em; font-size: 0.85rem; color: var(--muted); margin: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .caret { animation: none; } .float { display: none; } .meter div, .code { transition: none; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Code<span>_</span>Clicker</h1>
+    <div class="hdr-actions">
+      <button class="btn-ghost" id="resetBtn" type="button">Reset progress</button>
+    </div>
+  </header>
+
+  <div class="game">
+    <div class="col">
+      <section class="counter" aria-live="polite">
+        <div class="count"><span id="lines">0</span><small>lines of code</small></div>
+        <div class="rates">
+          <span><b id="lps">0</b> per second</span>
+          <span><b id="lpc">1</b> per keystroke</span>
+          <span id="starsChip" class="stars-chip" hidden></span>
+        </div>
+      </section>
+
+      <div class="editor" id="editor" tabindex="0" role="button" aria-label="Write code. Click, tap, or press any key while focused.">
+        <div class="tabbar"><span class="file">main.py</span><span>●</span><span class="hint">click or type to write code</span></div>
+        <div class="code" id="code"></div>
+      </div>
+      <p class="toast" id="toast" role="status"></p>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Upgrades</h2></div>
+        <div class="ups" id="ups"></div>
+        <div class="owned-ups" id="ownedUps"></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Hire</h2>
+          <div class="seg" role="group" aria-label="Amount to hire">
+            <button type="button" data-amt="1" aria-pressed="true">×1</button>
+            <button type="button" data-amt="10" aria-pressed="false">×10</button>
+            <button type="button" data-amt="max" aria-pressed="false">Max</button>
+          </div>
+        </div>
+        <div class="gens" id="gens"></div>
+      </section>
+
+      <section class="panel ship">
+        <div class="panel-head"><h2>Ship it</h2><span class="stars-chip" id="shipGain">+0 ★</span></div>
+        <p>Ship your product to reset lines, hires and upgrades. Each Star you earn adds 10% to all production and keystrokes, forever. You need 1M lines in a run to ship; Stars grow with the square root of that run's total.</p>
+        <div class="meter" aria-hidden="true"><div id="meter"></div></div>
+        <div class="confirm" id="shipArea"></div>
+        <div class="stats" id="stats"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // Balance mirrors incremental_game.py.
+  const OFFLINE_RATE = 0.5, OFFLINE_CAP = 8 * 3600, COST_GROWTH = 1.15;
+  const PRESTIGE_THRESHOLD = 1e6, STAR_BONUS = 0.10, SAVE_KEY = "code-clicker-v1";
+
+  const GENERATORS = [
+    ["Intern", 15, 0.1], ["Junior Dev", 100, 1], ["Senior Dev", 1100, 8],
+    ["AI Assistant", 12000, 47], ["Dev Team", 130000, 260],
+    ["Startup", 1.4e6, 1400], ["Tech Giant", 2e7, 7800],
+  ];
+  const UPGRADES = [
+    ["kb", "Mechanical Keyboard", "Keystrokes ×2", 100, "click", null, 2],
+    ["coffee", "Coffee Machine", "Interns ×2", 500, "gen", 0, 2],
+    ["ide", "Better IDE", "Keystrokes ×3", 5000, "click", null, 3],
+    ["mentor", "Mentorship Program", "Junior Devs ×2", 10000, "gen", 1, 2],
+    ["standup", "Daily Standups", "All production ×1.5", 50000, "all", null, 1.5],
+    ["review", "Code Reviews", "Senior Devs ×2", 100000, "gen", 2, 2],
+    ["macro", "Keyboard Macros", "Keystrokes +1% of per-second", 250000, "click", null, 1],
+    ["gpu", "GPU Cluster", "AI Assistants ×3", 1e6, "gen", 3, 3],
+    ["agile", "Agile Coach", "Dev Teams ×2", 1e7, "gen", 4, 2],
+    ["vc", "Venture Capital", "All production ×2", 5e7, "all", null, 2],
+  ];
+  const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
+
+  function fmt(n) {
+    if (n < 1000) return n % 1 ? String(+n.toFixed(1)) : String(Math.floor(n));
+    const exp = Math.min(Math.floor(Math.log10(n) / 3), SUFFIXES.length - 1);
+    return (n / 1000 ** exp).toFixed(2) + SUFFIXES[exp];
+  }
+  function fmtTime(s) {
+    s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return h ? `${h}h ${m}m` : m ? `${m}m ${s % 60}s` : `${s}s`;
+  }
+
+  function fresh() {
+    return { lines: 0, total: 0, lifetime: 0, owned: GENERATORS.map(() => 0), upgrades: [], stars: 0, clicks: 0 };
+  }
+  let S = fresh();
+  let buyAmt = 1;
+
+  const has = id => S.upgrades.includes(id);
+  const starMult = () => 1 + STAR_BONUS * S.stars;
+  function globalMult() {
+    let m = starMult();
+    for (const u of UPGRADES) if (u[4] === "all" && has(u[0])) m *= u[6];
+    return m;
+  }
+  function genRate(i) {
+    let r = GENERATORS[i][2];
+    for (const u of UPGRADES) if (u[4] === "gen" && u[5] === i && has(u[0])) r *= u[6];
+    return r * globalMult();
+  }
+  const lps = () => S.owned.reduce((sum, n, i) => sum + genRate(i) * n, 0);
+  function clickPower() {
+    let p = 1;
+    for (const u of UPGRADES) if (u[4] === "click" && u[0] !== "macro" && has(u[0])) p *= u[6];
+    p *= starMult();
+    if (has("macro")) p += 0.01 * lps();
+    return p;
+  }
+  const genCost = (i, owned = S.owned[i]) => Math.ceil(GENERATORS[i][1] * COST_GROWTH ** owned);
+  function plan(i, amt) {
+    let n = 0, total = 0;
+    const limit = amt === "max" ? Infinity : amt;
+    while (n < limit) {
+      const c = genCost(i, S.owned[i] + n);
+      if (amt === "max" && total + c > S.lines) break;
+      total += c; n++;
+    }
+    return { n: amt === "max" ? Math.max(n, 1) : n, cost: amt === "max" && n === 0 ? genCost(i) : total };
+  }
+  const starsOnShip = () => S.total < PRESTIGE_THRESHOLD ? 0 : Math.floor(Math.sqrt(S.total / PRESTIGE_THRESHOLD));
+
+  function earn(x) { S.lines += x; S.total += x; S.lifetime += x; }
+
+  // ---- persistence ----
+  function save() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ ...S, savedAt: Date.now() })); } catch (e) {}
+  }
+  function load(data) {
+    if (!data) return;
+    const base = fresh();
+    S = { ...base, ...data };
+    S.owned = [...(data.owned || []), ...base.owned].slice(0, GENERATORS.length);
+    S.upgrades = (data.upgrades || []).filter(id => UPGRADES.some(u => u[0] === id));
+    delete S.savedAt;
+    if (data.savedAt) {
+      const away = Math.min(Math.max(0, (Date.now() - data.savedAt) / 1000), OFFLINE_CAP);
+      const gained = lps() * away * OFFLINE_RATE;
+      if (gained > 0 && away > 5) {
+        earn(gained);
+        toast(`Welcome back. While you were away (${fmtTime(away)}) your team wrote ${fmt(gained)} lines.`);
+      }
+    }
+  }
+
+  // ---- editor typing ----
+  const SNIPPET = [
+    ["cm", "# ship it before friday"],
+    ["kw", "import", " asyncio, json"],
+    ["", ""],
+    ["kw", "class", " ", "fn", "Backlog", ":"],
+    ["", "    ", "kw", "def", " ", "fn", "__init__", "(self, tickets):"],
+    ["", "        self.tickets = sorted(tickets, key=", "kw", "lambda", " t: t.priority)"],
+    ["", ""],
+    ["", "    ", "kw", "async def", " ", "fn", "work", "(self, dev):"],
+    ["", "        ", "kw", "while", " self.tickets:"],
+    ["", "            ticket = self.tickets.pop()"],
+    ["", "            ", "kw", "await", " dev.", "fn", "fix", "(ticket)"],
+    ["", "            ", "fn", "print", "(", "str", "f\"closed #{ticket.id}\"", ")"],
+    ["", ""],
+    ["kw", "def", " ", "fn", "deploy", "(build, env=", "str", "\"prod\"", "):"],
+    ["", "    ", "kw", "if", " ", "kw", "not", " build.tests_pass:"],
+    ["", "        ", "kw", "raise", " RuntimeError(", "str", "\"tests are red\"", ")"],
+    ["", "    ", "kw", "return", " json.dumps({", "str", "\"env\"", ": env, ", "str", "\"ok\"", ": ", "kw", "True", "})"],
+    ["", ""],
+    ["kw", "for", " sprint ", "kw", "in", " ", "fn", "range", "(", "str", "10", "):"],
+    ["", "    asyncio.", "fn", "run", "(Backlog(load()).", "fn", "work", "(team))"],
+    ["", ""],
+  ];
+  // Flatten each snippet line into [cls, char] pairs.
+  const SNIP = SNIPPET.map(parts => {
+    const out = [];
+    for (let k = 0; k < parts.length;) {
+      let cls = "";
+      if (["cm", "kw", "fn", "str", ""].includes(parts[k]) && k + 1 < parts.length) { cls = parts[k]; k++; }
+      for (const ch of parts[k]) out.push([cls, ch]);
+      k++;
+    }
+    return out;
+  });
+  let snipLine = 0, snipCol = 0, lineNo = 1;
+  const doneLines = [];
+  const codeEl = document.getElementById("code");
+  const esc = c => c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === "&" ? "&amp;" : c;
+  const renderSpan = chars => {
+    let html = "", cur = null;
+    for (const [cls, ch] of chars) {
+      if (cls !== cur) { if (cur !== null) html += "</span>"; html += `<span class="${cls}">`; cur = cls; }
+      html += esc(ch);
+    }
+    return html + (cur !== null ? "</span>" : "");
+  };
+  function typeChars(n) {
+    for (let k = 0; k < n; k++) {
+      const line = SNIP[snipLine];
+      if (snipCol >= line.length) {
+        doneLines.push([lineNo++, line]);
+        if (doneLines.length > 12) doneLines.shift();
+        snipLine = (snipLine + 1) % SNIP.length; snipCol = 0;
+        if (!SNIP[snipLine].length) continue;
+      }
+      snipCol++;
+    }
+    drawCode();
+  }
+  function drawCode() {
+    let html = "";
+    for (const [no, line] of doneLines) html += `<div class="ln"><i>${no}</i><span>${renderSpan(line)}</span></div>`;
+    html += `<div class="ln"><i>${lineNo}</i><span>${renderSpan(SNIP[snipLine].slice(0, snipCol))}<b class="caret"></b></span></div>`;
+    codeEl.innerHTML = html;
+  }
+
+  // ---- actions ----
+  const editor = document.getElementById("editor");
+  function write(x, y) {
+    const gained = clickPower();
+    S.clicks++; earn(gained);
+    typeChars(3 + Math.floor(Math.random() * 3));
+    const r = editor.getBoundingClientRect();
+    const f = document.createElement("div");
+    f.className = "float"; f.textContent = "+" + fmt(gained);
+    f.style.left = (x != null ? x - r.left : r.width / 2) + "px";
+    f.style.top = (y != null ? y - r.top - 10 : r.height / 2) + "px";
+    editor.appendChild(f);
+    setTimeout(() => f.remove(), 900);
+    render();
+  }
+  editor.addEventListener("pointerdown", e => { e.preventDefault(); editor.focus({ preventScroll: true }); write(e.clientX, e.clientY); });
+  editor.addEventListener("keydown", e => {
+    if (e.metaKey || e.ctrlKey || e.altKey || e.key === "Tab" || e.key === "Shift") return;
+    e.preventDefault();
+    if (!e.repeat) write();
+  });
+
+  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+    buyAmt = b.dataset.amt === "max" ? "max" : +b.dataset.amt;
+    document.querySelectorAll(".seg button").forEach(o => o.setAttribute("aria-pressed", o === b));
+    render();
+  }));
+
+  const toastEl = document.getElementById("toast");
+  let toastTimer;
+  function toast(msg) {
+    toastEl.textContent = msg; clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastEl.textContent = ""; }, 6000);
+  }
+
+  // ---- rendering ----
+  const $ = id => document.getElementById(id);
+  const gensEl = $("gens"), upsEl = $("ups");
+
+  // Build generator buttons once; update their text each frame.
+  const genBtns = GENERATORS.map((g, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "gen";
+    b.innerHTML = `<span class="gen-name"></span><span class="gen-owned"></span><span class="gen-meta"></span>`;
+    b.addEventListener("click", () => {
+      const p = plan(i, buyAmt);
+      if (p.cost > S.lines) return;
+      S.lines -= p.cost; S.owned[i] += p.n;
+      toast(`Hired ${p.n} × ${g[0]} for ${fmt(p.cost)} lines.`);
+      save(); render();
+    });
+    gensEl.appendChild(b);
+    return b;
+  });
+
+  let upsKey = "";
+  function renderUps() {
+    const avail = UPGRADES.filter(u => !has(u[0]) && S.lifetime >= u[3] * 0.25);
+    const key = avail.map(u => u[0]).join();
+    if (key !== upsKey) {
+      upsKey = key;
+      upsEl.innerHTML = "";
+      if (!avail.length) upsEl.innerHTML = `<p class="empty">New upgrades appear as you write more code.</p>`;
+      for (const u of avail) {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "up"; b.dataset.id = u[0];
+        b.innerHTML = `<span class="up-name">${u[1]}</span><span class="up-desc">${u[2]}</span><span class="up-cost">${fmt(u[3])} lines</span>`;
+        b.addEventListener("click", () => {
+          if (has(u[0]) || u[3] > S.lines) return;
+          S.lines -= u[3]; S.upgrades.push(u[0]);
+          toast(`Bought ${u[1]}: ${u[2]}.`);
+          save(); render();
+        });
+        upsEl.appendChild(b);
+      }
+      $("ownedUps").innerHTML = S.upgrades.map(id => `<span>${UPGRADES.find(u => u[0] === id)[1]}</span>`).join("");
+    }
+    for (const b of upsEl.querySelectorAll(".up")) {
+      const u = UPGRADES.find(x => x[0] === b.dataset.id);
+      const ok = u[3] <= S.lines;
+      b.disabled = !ok; b.classList.toggle("affordable", ok);
+    }
+  }
+
+  let shipConfirm = false, resetConfirm = false;
+  function renderShip() {
+    const gain = starsOnShip();
+    $("shipGain").textContent = `+${gain} ★`;
+    $("meter").style.width = Math.min(100, (S.total / PRESTIGE_THRESHOLD) * 100) + "%";
+    const area = $("shipArea");
+    const want = shipConfirm ? "confirm" : gain ? "ready" : "locked";
+    if (area.dataset.state !== want) {
+      area.dataset.state = want;
+      if (want === "confirm") {
+        area.innerHTML = `<span>Reset this run for Stars?</span><button type="button" class="btn-primary" id="shipYes">Ship</button><button type="button" id="shipNo">Keep coding</button>`;
+        $("shipYes").onclick = () => {
+          const g = starsOnShip(); if (!g) return;
+          const keep = { stars: S.stars + g, lifetime: S.lifetime, clicks: S.clicks };
+          S = { ...fresh(), ...keep }; shipConfirm = false; upsKey = null;
+          toast(`Shipped. +${g} Stars, production now +${Math.round(STAR_BONUS * 100 * S.stars)}%.`);
+          save(); render();
+        };
+        $("shipNo").onclick = () => { shipConfirm = false; render(); };
+      } else {
+        area.innerHTML = `<button type="button" class="btn-primary" id="shipBtn">Ship product</button>`;
+        $("shipBtn").onclick = () => { shipConfirm = true; render(); };
+      }
+    }
+    const btn = $("shipBtn"); if (btn) btn.disabled = !gain;
+    if (shipConfirm && !gain) shipConfirm = false;
+    $("stats").innerHTML = `<span>this run ${fmt(S.total)}</span><span>lifetime ${fmt(S.lifetime)}</span><span>keystrokes ${S.clicks.toLocaleString()}</span>`;
+  }
+
+  function render() {
+    $("lines").textContent = fmt(S.lines);
+    $("lps").textContent = fmt(lps());
+    $("lpc").textContent = fmt(clickPower());
+    const chip = $("starsChip");
+    chip.hidden = !S.stars;
+    chip.textContent = `${S.stars} ★ · +${Math.round(STAR_BONUS * 100 * S.stars)}%`;
+
+    let hiddenShown = false;
+    GENERATORS.forEach((g, i) => {
+      const b = genBtns[i];
+      const locked = i > 0 && !S.owned[i] && !S.owned[i - 1] && S.lifetime < g[1] * 0.5;
+      if (locked) {
+        b.hidden = hiddenShown; hiddenShown = true;
+        b.disabled = true; b.classList.add("locked"); b.classList.remove("affordable");
+        b.children[0].textContent = "???"; b.children[1].textContent = "";
+        b.children[2].textContent = "keep writing to unlock";
+        return;
+      }
+      b.hidden = false; b.classList.remove("locked");
+      const p = plan(i, buyAmt), ok = p.cost <= S.lines;
+      b.disabled = !ok; b.classList.toggle("affordable", ok);
+      b.children[0].textContent = g[0];
+      b.children[1].textContent = S.owned[i];
+      b.children[2].innerHTML = `<span class="cost">${buyAmt === 1 ? "" : "×" + p.n + " "}${fmt(p.cost)} lines</span><span>${fmt(genRate(i))}/s each</span>`;
+      b.setAttribute("aria-label", `Hire ${p.n} ${g[0]} for ${fmt(p.cost)} lines. Owned ${S.owned[i]}.`);
+    });
+    renderUps();
+    renderShip();
+  }
+
+  const resetBtn = $("resetBtn");
+  resetBtn.addEventListener("click", () => {
+    if (!resetConfirm) {
+      resetConfirm = true; resetBtn.textContent = "Click again to wipe everything";
+      setTimeout(() => { resetConfirm = false; resetBtn.textContent = "Reset progress"; }, 4000);
+      return;
+    }
+    resetConfirm = false; resetBtn.textContent = "Reset progress";
+    S = fresh(); upsKey = null; save(); toast("Progress wiped."); render();
+  });
+
+  // ---- main loop ----
+  let last = performance.now(), lastSave = Date.now();
+  function frame(now) {
+    const dt = Math.min(1, (now - last) / 1000); last = now;
+    earn(lps() * dt);
+    render();
+    if (Date.now() - lastSave > 10000) { save(); lastSave = Date.now(); }
+    requestAnimationFrame(frame);
+  }
+  // Catch up when the tab was in the background (rAF pauses).
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { save(); return; }
+    try { const d = JSON.parse(localStorage.getItem(SAVE_KEY)); if (d && d.savedAt) {
+      const away = Math.min((Date.now() - d.savedAt) / 1000, OFFLINE_CAP);
+      if (away > 1) earn(lps() * away);
+    } } catch (e) {}
+    last = performance.now();
+  });
+  addEventListener("pagehide", save);
+
+  function start(hot) {
+    if (hot && hot.state) S = hot.state;
+    else { try { load(JSON.parse(localStorage.getItem(SAVE_KEY))); } catch (e) {} }
+    if (!S.lifetime) toast("Click the editor, or focus it and type, to write your first lines of code.");
+    drawCode(); render();
+    requestAnimationFrame(frame);
+  }
+  window.claude?.hot?.snapshot?.(() => ({ state: S }));
+  window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
