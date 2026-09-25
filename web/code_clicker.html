@@ -14,12 +14,10 @@
   --accent-ink: #ffffff;
   --gold: #b7791f;
   --gold-bg: #fbeed3;
-  --editor-bg: #1c2230;
-  --editor-ink: #d7deea;
-  --editor-dim: #6d7892;
-  --kw: #7fd6d8;
-  --str: #f2c14e;
-  --fn: #b7a6ff;
+  --scene-sky: #dfe4ee;
+  --scene-floor: #cdd4e1;
+  --scene-grid: #b6bfd0;
+  --scene-wood: #c9a77c;
   --display: "Martian Mono", "JetBrains Mono", ui-monospace, monospace;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -29,16 +27,16 @@
     color-scheme: dark;
     --bg: #11151d; --surface: #181e29; --surface-2: #222a38; --ink: #e3e8f1;
     --muted: #8b96ad; --line: #2c3547; --accent: #3fbfc2; --accent-ink: #0b1b1c;
-    --gold: #f2c14e; --gold-bg: #3a2f16; --editor-bg: #0b0e14; --editor-ink: #d7deea;
-    --editor-dim: #5a6479;
+    --gold: #f2c14e; --gold-bg: #3a2f16;
+    --scene-sky: #0e1219; --scene-floor: #161c27; --scene-grid: #232c3b; --scene-wood: #6b5238;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #11151d; --surface: #181e29; --surface-2: #222a38; --ink: #e3e8f1;
   --muted: #8b96ad; --line: #2c3547; --accent: #3fbfc2; --accent-ink: #0b1b1c;
-  --gold: #f2c14e; --gold-bg: #3a2f16; --editor-bg: #0b0e14; --editor-ink: #d7deea;
-  --editor-dim: #5a6479;
+  --gold: #f2c14e; --gold-bg: #3a2f16;
+  --scene-sky: #0e1219; --scene-floor: #161c27; --scene-grid: #232c3b; --scene-wood: #6b5238;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -46,21 +44,25 @@ body {
   background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body);
   padding-inline: 16px; padding-block: 20px 40px;
 }
-.wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 20px; }
+.wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 16px; }
 header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
 h1 { font: 800 1.1rem/1 var(--display); letter-spacing: -0.02em; margin: 0; }
 h1 span { color: var(--accent); }
-.hdr-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 h2 {
   font: 700 0.72rem/1 var(--display); text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--muted); margin: 0;
 }
-.game { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
-@media (max-width: 820px) { .game { grid-template-columns: 1fr; } }
-.col { display: grid; gap: 20px; min-width: 0; }
 
-/* Counter */
-.counter { display: grid; gap: 4px; }
+/* 3D stage */
+.stage {
+  position: relative; height: clamp(340px, 60vh, 580px); border-radius: 12px; overflow: hidden;
+  background: var(--scene-sky); border: 1px solid var(--line); touch-action: none;
+  cursor: pointer; outline: none; user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.stage:focus-visible { box-shadow: 0 0 0 3px var(--accent); }
+.stage canvas { display: block; width: 100%; height: 100%; }
+.stage.dragging { cursor: grabbing; }
+.hud { text-shadow: 0 0 6px var(--scene-sky), 0 0 2px var(--scene-sky); position: absolute; left: 18px; top: 14px; right: 18px; pointer-events: none; display: grid; gap: 4px; }
 .count {
   font: 800 clamp(2rem, 6vw, 3.4rem)/1.05 var(--display); letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
@@ -72,32 +74,22 @@ h2 {
   display: inline-flex; gap: 6px; align-items: center; padding: 2px 10px; border-radius: 999px;
   background: var(--gold-bg); color: var(--gold); font: 600 0.8rem var(--mono);
 }
-
-/* Editor: the click target */
-.editor {
-  position: relative; background: var(--editor-bg); color: var(--editor-ink); border-radius: 10px;
-  font: 13px/1.6 var(--mono); cursor: pointer; user-select: none; overflow: hidden;
-  border: 1px solid var(--line); outline: none; -webkit-tap-highlight-color: transparent;
+.stage-hint {
+  position: absolute; right: 12px; bottom: 10px; pointer-events: none;
+  font: 0.72rem var(--mono); color: var(--muted); background: var(--surface); opacity: 0.85;
+  padding: 3px 8px; border-radius: 6px;
 }
-.editor:focus-visible { box-shadow: 0 0 0 3px var(--accent); }
-.editor:active .code { transform: translateY(1px); }
-.tabbar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #ffffff14; font-size: 12px; color: var(--editor-dim); }
-.tabbar .file { color: var(--editor-ink); }
-.tabbar .hint { margin-left: auto; }
-.code { padding: 12px 14px 14px 0; height: 17.5em; overflow: hidden; display: grid; align-content: end; transition: transform 60ms; }
-.ln { display: grid; grid-template-columns: 3.4em 1fr; white-space: pre; }
-.ln i { font-style: normal; color: var(--editor-dim); text-align: right; padding-right: 1em; }
-.ln span { overflow: hidden; text-overflow: clip; }
-.caret { display: inline-block; width: 0.55em; height: 1.1em; background: var(--kw); vertical-align: -0.2em; animation: blink 1s steps(1) infinite; }
-@keyframes blink { 50% { opacity: 0; } }
-.kw { color: var(--kw); } .str { color: var(--str); } .fn { color: var(--fn); } .cm { color: var(--editor-dim); }
+.nogl { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); }
 .float {
-  position: absolute; pointer-events: none; font: 700 14px var(--display); color: var(--str);
-  animation: rise 0.9s ease-out forwards; white-space: nowrap;
+  position: absolute; pointer-events: none; font: 700 15px var(--display); color: var(--gold);
+  animation: rise 0.9s ease-out forwards; white-space: nowrap; text-shadow: 0 1px 0 var(--bg);
 }
-@keyframes rise { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -48px); } }
+@keyframes rise { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -56px); } }
 
 /* Panels */
+.game { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .game { grid-template-columns: 1fr; } }
+.col { display: grid; gap: 20px; min-width: 0; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
@@ -114,22 +106,21 @@ button:disabled { cursor: not-allowed; }
 .btn-primary:disabled { background: var(--surface-2); color: var(--muted); }
 .btn-ghost { background: transparent; color: var(--muted); font-size: 0.85rem; }
 
-/* Generators */
 .gens { display: grid; gap: 8px; }
 .gen {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; text-align: left;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; text-align: left;
   padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; width: 100%;
 }
 .gen:not(:disabled):hover { border-color: var(--accent); }
 .gen:disabled { opacity: 0.55; }
 .gen.locked { opacity: 0.4; }
+.swatch { width: 10px; height: 28px; border-radius: 3px; grid-row: span 2; }
 .gen-name { font-weight: 600; }
 .gen-owned { font: 800 1.3rem/1 var(--display); grid-row: span 2; align-self: center; font-variant-numeric: tabular-nums; }
 .gen-meta { font: 0.78rem var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 2px 12px; }
 .gen-meta .cost { color: var(--ink); font-weight: 600; }
 .gen.affordable .cost { color: var(--accent); }
 
-/* Upgrades */
 .ups { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
 .up { text-align: left; display: grid; gap: 2px; padding: 10px 12px; }
 .up:not(:disabled):hover { border-color: var(--accent); }
@@ -142,7 +133,6 @@ button:disabled { cursor: not-allowed; }
 .owned-ups { display: flex; flex-wrap: wrap; gap: 6px; }
 .owned-ups span { font: 0.72rem var(--mono); padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
 
-/* Ship */
 .ship { display: grid; gap: 10px; }
 .ship p { margin: 0; color: var(--muted); font-size: 0.88rem; max-width: 60ch; }
 .meter { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
@@ -150,40 +140,41 @@ button:disabled { cursor: not-allowed; }
 .confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.88rem; }
 .stats { font: 0.78rem var(--mono); color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 18px; font-variant-numeric: tabular-nums; }
 .toast { min-height: 1.4em; font-size: 0.85rem; color: var(--muted); margin: 0; }
-@media (prefers-reduced-motion: reduce) {
-  .caret { animation: none; } .float { display: none; } .meter div, .code { transition: none; }
-}
+@media (prefers-reduced-motion: reduce) { .float { display: none; } .meter div { transition: none; } }
 </style>
 
 <div class="wrap">
   <header>
     <h1>Code<span>_</span>Clicker</h1>
-    <div class="hdr-actions">
-      <button class="btn-ghost" id="resetBtn" type="button">Reset progress</button>
-    </div>
+    <button class="btn-ghost" id="resetBtn" type="button">Reset progress</button>
   </header>
+
+  <div class="stage" id="stage" tabindex="0" role="button" aria-label="Your office. Click, tap, or press any key while focused to write code. Drag to look around.">
+    <div class="hud" aria-live="polite">
+      <div class="count"><span id="lines">0</span><small>lines of code</small></div>
+      <div class="rates">
+        <span><b id="lps">0</b> per second</span>
+        <span><b id="lpc">1</b> per keystroke</span>
+        <span id="starsChip" class="stars-chip" hidden></span>
+      </div>
+    </div>
+    <div class="stage-hint">tap or type to write · drag to look around</div>
+  </div>
+  <p class="toast" id="toast" role="status"></p>
 
   <div class="game">
     <div class="col">
-      <section class="counter" aria-live="polite">
-        <div class="count"><span id="lines">0</span><small>lines of code</small></div>
-        <div class="rates">
-          <span><b id="lps">0</b> per second</span>
-          <span><b id="lpc">1</b> per keystroke</span>
-          <span id="starsChip" class="stars-chip" hidden></span>
-        </div>
-      </section>
-
-      <div class="editor" id="editor" tabindex="0" role="button" aria-label="Write code. Click, tap, or press any key while focused.">
-        <div class="tabbar"><span class="file">main.py</span><span>●</span><span class="hint">click or type to write code</span></div>
-        <div class="code" id="code"></div>
-      </div>
-      <p class="toast" id="toast" role="status"></p>
-
       <section class="panel">
         <div class="panel-head"><h2>Upgrades</h2></div>
         <div class="ups" id="ups"></div>
         <div class="owned-ups" id="ownedUps"></div>
+      </section>
+      <section class="panel ship">
+        <div class="panel-head"><h2>Ship it</h2><span class="stars-chip" id="shipGain">+0 ★</span></div>
+        <p>Ship your product to reset lines, hires and upgrades. Each Star you earn adds 10% to all production and keystrokes, forever. You need 1M lines in a run to ship; Stars grow with the square root of that run's total.</p>
+        <div class="meter" aria-hidden="true"><div id="meter"></div></div>
+        <div class="confirm" id="shipArea"></div>
+        <div class="stats" id="stats"></div>
       </section>
     </div>
 
@@ -199,18 +190,11 @@ button:disabled { cursor: not-allowed; }
         </div>
         <div class="gens" id="gens"></div>
       </section>
-
-      <section class="panel ship">
-        <div class="panel-head"><h2>Ship it</h2><span class="stars-chip" id="shipGain">+0 ★</span></div>
-        <p>Ship your product to reset lines, hires and upgrades. Each Star you earn adds 10% to all production and keystrokes, forever. You need 1M lines in a run to ship; Stars grow with the square root of that run's total.</p>
-        <div class="meter" aria-hidden="true"><div id="meter"></div></div>
-        <div class="confirm" id="shipArea"></div>
-        <div class="stats" id="stats"></div>
-      </section>
     </div>
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (() => {
   // Balance mirrors incremental_game.py.
@@ -222,6 +206,8 @@ button:disabled { cursor: not-allowed; }
     ["AI Assistant", 12000, 47], ["Dev Team", 130000, 260],
     ["Startup", 1.4e6, 1400], ["Tech Giant", 2e7, 7800],
   ];
+  // Color used for each generator's models in the office and its swatch in the list.
+  const GEN_COLORS = ["#e8a23a", "#3f8fd6", "#7a5bd1", "#2bb5b8", "#d6566f", "#5aa05a", "#8a93a8"];
   const UPGRADES = [
     ["kb", "Mechanical Keyboard", "Keystrokes ×2", 100, "click", null, 2],
     ["coffee", "Coffee Machine", "Interns ×2", 500, "gen", 0, 2],
@@ -235,6 +221,7 @@ button:disabled { cursor: not-allowed; }
     ["vc", "Venture Capital", "All production ×2", 5e7, "all", null, 2],
   ];
   const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function fmt(n) {
     if (n < 1000) return n % 1 ? String(+n.toFixed(1)) : String(Math.floor(n));
@@ -284,7 +271,6 @@ button:disabled { cursor: not-allowed; }
     return { n: amt === "max" ? Math.max(n, 1) : n, cost: amt === "max" && n === 0 ? genCost(i) : total };
   }
   const starsOnShip = () => S.total < PRESTIGE_THRESHOLD ? 0 : Math.floor(Math.sqrt(S.total / PRESTIGE_THRESHOLD));
-
   function earn(x) { S.lines += x; S.total += x; S.lifetime += x; }
 
   // ---- persistence ----
@@ -308,90 +294,474 @@ button:disabled { cursor: not-allowed; }
     }
   }
 
-  // ---- editor typing ----
-  const SNIPPET = [
-    ["cm", "# ship it before friday"],
-    ["kw", "import", " asyncio, json"],
-    ["", ""],
-    ["kw", "class", " ", "fn", "Backlog", ":"],
-    ["", "    ", "kw", "def", " ", "fn", "__init__", "(self, tickets):"],
-    ["", "        self.tickets = sorted(tickets, key=", "kw", "lambda", " t: t.priority)"],
-    ["", ""],
-    ["", "    ", "kw", "async def", " ", "fn", "work", "(self, dev):"],
-    ["", "        ", "kw", "while", " self.tickets:"],
-    ["", "            ticket = self.tickets.pop()"],
-    ["", "            ", "kw", "await", " dev.", "fn", "fix", "(ticket)"],
-    ["", "            ", "fn", "print", "(", "str", "f\"closed #{ticket.id}\"", ")"],
-    ["", ""],
-    ["kw", "def", " ", "fn", "deploy", "(build, env=", "str", "\"prod\"", "):"],
-    ["", "    ", "kw", "if", " ", "kw", "not", " build.tests_pass:"],
-    ["", "        ", "kw", "raise", " RuntimeError(", "str", "\"tests are red\"", ")"],
-    ["", "    ", "kw", "return", " json.dumps({", "str", "\"env\"", ": env, ", "str", "\"ok\"", ": ", "kw", "True", "})"],
-    ["", ""],
-    ["kw", "for", " sprint ", "kw", "in", " ", "fn", "range", "(", "str", "10", "):"],
-    ["", "    asyncio.", "fn", "run", "(Backlog(load()).", "fn", "work", "(team))"],
-    ["", ""],
-  ];
-  // Flatten each snippet line into [cls, char] pairs.
-  const SNIP = SNIPPET.map(parts => {
-    const out = [];
-    for (let k = 0; k < parts.length;) {
-      let cls = "";
-      if (["cm", "kw", "fn", "str", ""].includes(parts[k]) && k + 1 < parts.length) { cls = parts[k]; k++; }
-      for (const ch of parts[k]) out.push([cls, ch]);
-      k++;
-    }
-    return out;
-  });
-  let snipLine = 0, snipCol = 0, lineNo = 1;
-  const doneLines = [];
-  const codeEl = document.getElementById("code");
-  const esc = c => c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === "&" ? "&amp;" : c;
-  const renderSpan = chars => {
-    let html = "", cur = null;
-    for (const [cls, ch] of chars) {
-      if (cls !== cur) { if (cur !== null) html += "</span>"; html += `<span class="${cls}">`; cur = cls; }
-      html += esc(ch);
-    }
-    return html + (cur !== null ? "</span>" : "");
-  };
-  function typeChars(n) {
-    for (let k = 0; k < n; k++) {
-      const line = SNIP[snipLine];
-      if (snipCol >= line.length) {
-        doneLines.push([lineNo++, line]);
-        if (doneLines.length > 12) doneLines.shift();
-        snipLine = (snipLine + 1) % SNIP.length; snipCol = 0;
-        if (!SNIP[snipLine].length) continue;
-      }
-      snipCol++;
-    }
-    drawCode();
+  const $ = id => document.getElementById(id);
+  const toastEl = $("toast");
+  let toastTimer;
+  function toast(msg) {
+    toastEl.textContent = msg; clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastEl.textContent = ""; }, 6000);
   }
-  function drawCode() {
-    let html = "";
-    for (const [no, line] of doneLines) html += `<div class="ln"><i>${no}</i><span>${renderSpan(line)}</span></div>`;
-    html += `<div class="ln"><i>${lineNo}</i><span>${renderSpan(SNIP[snipLine].slice(0, snipCol))}<b class="caret"></b></span></div>`;
-    codeEl.innerHTML = html;
+
+  // =====================================================================
+  // 3D office
+  // =====================================================================
+  const stage = $("stage");
+  const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const World = (() => {
+    if (!window.THREE) return null;
+    const T = THREE;
+    let renderer;
+    try { renderer = new T.WebGLRenderer({ antialias: true }); } catch (e) { return null; }
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = T.PCFSoftShadowMap;
+    stage.prepend(renderer.domElement);
+
+    const scene = new T.Scene();
+    scene.fog = new T.Fog(0xffffff, 18, 46);
+    const camera = new T.PerspectiveCamera(42, 1, 0.1, 200);
+
+    const hemi = new T.HemisphereLight(0xffffff, 0x3a4458, 0.6);
+    scene.add(hemi);
+    const sun = new T.DirectionalLight(0xffffff, 0.55);
+    sun.position.set(8, 16, 6);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 50 });
+    sun.shadow.bias = -0.0005;
+    scene.add(sun);
+
+    const mat = (color, extra = {}) => new T.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0.05, ...extra });
+    const floorMat = mat(0xffffff, { roughness: 0.95 });
+    const floor = new T.Mesh(new T.CircleGeometry(40, 64), floorMat);
+    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
+    scene.add(floor);
+    let grid = null;
+    const woodMat = mat(0xffffff, { roughness: 0.6 });
+    const darkMat = mat(0x2a3140, { roughness: 0.5, metalness: 0.3 });
+    const metalMat = mat(0x9aa3b5, { roughness: 0.35, metalness: 0.6 });
+    const skinMats = [0xf1c9a5, 0xd9a577, 0xa8704a, 0x7a4b2e, 0xe8b894].map(c => mat(c, { roughness: 0.8 }));
+    const genMats = GEN_COLORS.map(c => mat(c));
+
+    function applyTheme() {
+      const sky = new T.Color(cssVar("--scene-sky") || "#dfe4ee");
+      scene.background = sky; scene.fog.color = sky;
+      floorMat.color.set(cssVar("--scene-floor") || "#cdd4e1");
+      // Dark rooms need more fill light so the models stay readable.
+      const dark = sky.r + sky.g + sky.b < 1.2;
+      hemi.intensity = dark ? 1.05 : 0.6;
+      sun.intensity = dark ? 0.75 : 0.55;
+      woodMat.color.set(cssVar("--scene-wood") || "#c9a77c");
+      if (grid) scene.remove(grid);
+      const gc = new T.Color(cssVar("--scene-grid") || "#b6bfd0");
+      grid = new T.PolarGridHelper(34, 16, 14, 64, gc, gc);
+      grid.position.y = 0.002; grid.material.transparent = true; grid.material.opacity = 0.55;
+      scene.add(grid);
+    }
+    applyTheme();
+    new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", applyTheme);
+
+    const box = (w, h, d, m) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.castShadow = o.receiveShadow = true; return o; };
+    const cyl = (rt, rb, h, m, seg = 16) => { const o = new T.Mesh(new T.CylinderGeometry(rt, rb, h, seg), m); o.castShadow = true; return o; };
+    const sph = (r, m) => { const o = new T.Mesh(new T.SphereGeometry(r, 20, 14), m); o.castShadow = true; return o; };
+
+    // Shared tiny "code on screen" texture for the workers' monitors.
+    function codeTexture(w, h, lines) {
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      const g = c.getContext("2d");
+      g.fillStyle = "#1c2230"; g.fillRect(0, 0, w, h);
+      const cols = ["#7fd6d8", "#f2c14e", "#b7a6ff", "#d7deea", "#d7deea"];
+      const lh = h / lines;
+      for (let i = 0; i < lines; i++) {
+        let x = 6 + (i % 4) * 8;
+        while (x < w - 10 && Math.random() > 0.15) {
+          const len = 6 + Math.random() * 26;
+          g.fillStyle = cols[Math.floor(Math.random() * cols.length)];
+          g.fillRect(x, i * lh + lh * 0.3, Math.min(len, w - 6 - x), lh * 0.4);
+          x += len + 5;
+        }
+      }
+      return new T.CanvasTexture(c);
+    }
+    const screenMat = new T.MeshBasicMaterial({ map: codeTexture(128, 80, 10) });
+
+    function person(shirt, seated = true) {
+      const g = new T.Group();
+      const body = cyl(0.15, 0.2, 0.5, shirt); body.position.y = seated ? 0.72 : 0.55; g.add(body);
+      const head = sph(0.13, skinMats[Math.floor(Math.random() * skinMats.length)]);
+      head.position.y = body.position.y + 0.4; g.add(head);
+      g.userData.head = head;
+      return g;
+    }
+    function monitor(w = 0.46, h = 0.3) {
+      const g = new T.Group();
+      const frame = box(w, h, 0.03, darkMat); g.add(frame);
+      const scr = new T.Mesh(new T.PlaneGeometry(w * 0.9, h * 0.85), screenMat);
+      scr.position.z = 0.017; g.add(scr);
+      const stand = box(0.04, 0.14, 0.04, darkMat); stand.position.y = -h / 2 - 0.05; g.add(stand);
+      return g;
+    }
+    function desk(w = 1.0, d = 0.55) {
+      const g = new T.Group();
+      const top = box(w, 0.05, d, woodMat); top.position.y = 0.72; g.add(top);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        const leg = box(0.04, 0.7, 0.04, metalMat); leg.position.set(sx * (w / 2 - 0.05), 0.35, sz * (d / 2 - 0.05)); g.add(leg);
+      }
+      return g;
+    }
+    function workstation(color, screens) {
+      // Local frame: worker sits at +z looking toward -z.
+      const g = new T.Group();
+      g.add(desk(screens > 1 ? 1.2 : 1.0));
+      screens = Math.max(1, screens);
+      for (let s = 0; s < screens; s++) {
+        const m = monitor(); m.position.set((s - (screens - 1) / 2) * 0.5, 1.0, -0.12);
+        if (screens > 1) m.rotation.y = (s ? -1 : 1) * 0.18;
+        g.add(m);
+      }
+      const kb = box(0.4, 0.02, 0.13, darkMat); kb.position.set(0, 0.755, 0.1); g.add(kb);
+      const chair = box(0.42, 0.06, 0.42, darkMat); chair.position.set(0, 0.45, 0.55); g.add(chair);
+      const back = box(0.42, 0.45, 0.05, darkMat); back.position.set(0, 0.72, 0.78); g.add(back);
+      const p = person(color); p.position.z = 0.52; p.scale.setScalar(0.95); g.add(p);
+      g.userData.bob = p.userData.head;
+      return g;
+    }
+    const FACTORIES = [
+      // Intern: standing with a glowing laptop.
+      () => {
+        const g = new T.Group(); const p = person(genMats[0], false); g.add(p);
+        const lap = box(0.3, 0.02, 0.2, darkMat); lap.position.set(0, 0.62, -0.22); g.add(lap);
+        const ls = new T.Mesh(new T.PlaneGeometry(0.28, 0.18), screenMat);
+        ls.position.set(0, 0.72, -0.33); ls.rotation.x = -0.25; ls.rotation.y = Math.PI; g.add(ls);
+        g.userData.bob = p.userData.head; g.scale.setScalar(0.9); return g;
+      },
+      () => workstation(genMats[1], 1),
+      () => workstation(genMats[2], 2),
+      // AI Assistant: a floating, spinning crystal.
+      () => {
+        const g = new T.Group();
+        const m = new T.MeshStandardMaterial({ color: GEN_COLORS[3], emissive: GEN_COLORS[3], emissiveIntensity: 0.55, roughness: 0.2, metalness: 0.3, flatShading: true });
+        const c = new T.Mesh(new T.IcosahedronGeometry(0.28, 0), m); c.castShadow = true; c.position.y = 2.1; g.add(c);
+        const ring = new T.Mesh(new T.TorusGeometry(0.42, 0.015, 8, 40), metalMat); ring.position.y = 2.1; ring.rotation.x = Math.PI / 2; g.add(ring);
+        g.userData.spin = c; g.userData.float = true; return g;
+      },
+      // Dev Team: server rack with blinking lights.
+      () => {
+        const g = new T.Group();
+        const rack = box(0.6, 1.9, 0.6, darkMat); rack.position.y = 0.95; g.add(rack);
+        const leds = [];
+        for (let r = 0; r < 8; r++) {
+          const led = new T.Mesh(new T.BoxGeometry(0.4, 0.05, 0.01), new T.MeshBasicMaterial({ color: GEN_COLORS[4] }));
+          led.position.set(0, 0.3 + r * 0.2, 0.305); g.add(led); leds.push(led);
+          const led2 = led.clone(); led2.position.z = -0.305; g.add(led2); leds.push(led2);
+        }
+        g.userData.leds = leds; return g;
+      },
+      // Startup: a small office building.
+      () => {
+        const g = new T.Group(); const h = 2.2 + Math.random() * 1.4;
+        const b = box(1.4, h, 1.4, genMats[5]); b.position.y = h / 2; g.add(b);
+        const winMat = new T.MeshBasicMaterial({ color: 0xfff1c4 });
+        for (let y = 0.5; y < h - 0.3; y += 0.5) for (const x of [-0.35, 0, 0.35]) {
+          if (Math.random() < 0.3) continue;
+          for (const side of [1, -1]) {
+            const w = new T.Mesh(new T.PlaneGeometry(0.2, 0.25), winMat);
+            w.position.set(x, y, side * 0.705); if (side < 0) w.rotation.y = Math.PI; g.add(w);
+          }
+        }
+        return g;
+      },
+      // Tech Giant: a glass tower with a glowing crown.
+      () => {
+        const g = new T.Group(); const h = 3.8 + Math.random() * 2;
+        const t = box(1.8, h, 1.8, mat(GEN_COLORS[6], { metalness: 0.7, roughness: 0.25 })); t.position.y = h / 2; g.add(t);
+        const crown = new T.Mesh(new T.BoxGeometry(1.9, 0.25, 1.9), new T.MeshBasicMaterial({ color: GEN_COLORS[3] }));
+        crown.position.y = h - 0.4; g.add(crown);
+        const ant = cyl(0.03, 0.03, 1.4, metalMat, 6); ant.position.y = h + 0.7; g.add(ant);
+        return g;
+      },
+    ];
+    // Ring radius and how many models each generator shows at most.
+    const RINGS = [
+      { r: 2.4, cap: 10 }, { r: 4.0, cap: 16 }, { r: 5.8, cap: 20 }, { r: 3.3, cap: 12 },
+      { r: 7.8, cap: 26 }, { r: 11.5, cap: 22 }, { r: 17, cap: 20 },
+    ];
+    const units = GENERATORS.map(() => []);
+
+    // ---- the player's desk ----
+    const player = new T.Group(); scene.add(player);
+    const pDesk = desk(1.5, 0.75); player.add(pDesk);
+    const codeCanvas = document.createElement("canvas"); codeCanvas.width = 640; codeCanvas.height = 400;
+    const codeTex = new T.CanvasTexture(codeCanvas);
+    codeTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const pMon = new T.Group();
+    const pFrame = box(1.0, 0.64, 0.04, darkMat); pMon.add(pFrame);
+    const pScreen = new T.Mesh(new T.PlaneGeometry(0.94, 0.58), new T.MeshBasicMaterial({ map: codeTex }));
+    pScreen.position.z = 0.022; pMon.add(pScreen);
+    const pStand = box(0.06, 0.2, 0.06, darkMat); pStand.position.y = -0.4; pMon.add(pStand);
+    pMon.position.set(0, 1.18, -0.18); player.add(pMon);
+    // Keyboard with keycaps that press down on each keystroke.
+    const keys = [];
+    const kbBase = box(0.62, 0.025, 0.2, darkMat); kbBase.position.set(0, 0.76, 0.12); player.add(kbBase);
+    const capMat = mat(0xe6e9ef, { roughness: 0.5 });
+    const capAccent = mat(GEN_COLORS[3], { roughness: 0.5 });
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 12; c++) {
+      const k = box(0.042, 0.02, 0.038, (r * 12 + c) % 17 === 3 ? capAccent : capMat);
+      k.position.set(-0.264 + c * 0.048, 0.785, 0.045 + r * 0.047);
+      k.userData.rest = 0.785; player.add(k); keys.push(k);
+    }
+    const mug = cyl(0.05, 0.045, 0.11, mat(GEN_COLORS[0]), 14); mug.position.set(0.55, 0.8, 0.1); player.add(mug);
+    const pChair = box(0.5, 0.07, 0.5, darkMat); pChair.position.set(0, 0.45, 0.75); player.add(pChair);
+    const pBack = box(0.5, 0.55, 0.06, darkMat); pBack.position.set(0, 0.76, 1.02); player.add(pBack);
+    const you = person(mat(cssVar("--accent") || "#0c7f82")); you.position.z = 0.72; player.add(you);
+
+    // ---- flying code "glyphs" ----
+    const glyphCols = ["#7fd6d8", "#f2c14e", "#b7a6ff", "#e8a23a"].map(c => new T.MeshBasicMaterial({ color: c, transparent: true }));
+    const glyphGeo = new T.BoxGeometry(0.16, 0.035, 0.035);
+    const glyphs = [];
+    for (let i = 0; i < 140; i++) {
+      const m = new T.Mesh(glyphGeo, glyphCols[i % glyphCols.length].clone());
+      m.visible = false; scene.add(m); glyphs.push({ m, life: 0, v: new T.Vector3() });
+    }
+    let glyphIdx = 0;
+    function emit(pos, n, spread = 0.35, up = 1.4) {
+      for (let k = 0; k < n; k++) {
+        const g = glyphs[glyphIdx++ % glyphs.length];
+        g.m.position.copy(pos).add(new T.Vector3((Math.random() - 0.5) * spread, Math.random() * 0.2, (Math.random() - 0.5) * spread));
+        g.v.set((Math.random() - 0.5) * 0.6, up * (0.7 + Math.random() * 0.6), (Math.random() - 0.5) * 0.6);
+        g.m.scale.x = 0.5 + Math.random() * 1.5;
+        g.m.rotation.y = Math.random() * Math.PI;
+        g.life = 1; g.m.visible = true; g.m.material.opacity = 1;
+      }
+    }
+
+    // ---- editor text on the player's monitor ----
+    const SNIPPET = [
+      [["cm", "# ship it before friday"]],
+      [["kw", "import"], ["", " asyncio, json"]],
+      [],
+      [["kw", "class"], ["", " "], ["fn", "Backlog"], ["", ":"]],
+      [["", "    "], ["kw", "def"], ["", " "], ["fn", "__init__"], ["", "(self, tickets):"]],
+      [["", "        self.tickets = sorted(tickets)"]],
+      [],
+      [["", "    "], ["kw", "async def"], ["", " "], ["fn", "work"], ["", "(self, dev):"]],
+      [["", "        "], ["kw", "while"], ["", " self.tickets:"]],
+      [["", "            ticket = self.tickets.pop()"]],
+      [["", "            "], ["kw", "await"], ["", " dev."], ["fn", "fix"], ["", "(ticket)"]],
+      [["", "            "], ["fn", "print"], ["", "("], ["str", "f\"closed #{ticket.id}\""], ["", ")"]],
+      [],
+      [["kw", "def"], ["", " "], ["fn", "deploy"], ["", "(build, env="], ["str", "\"prod\""], ["", "):"]],
+      [["", "    "], ["kw", "if not"], ["", " build.tests_pass:"]],
+      [["", "        "], ["kw", "raise"], ["", " RuntimeError("], ["str", "\"tests are red\""], ["", ")"]],
+      [["", "    "], ["kw", "return"], ["", " json.dumps({"], ["str", "\"ok\""], ["", ": "], ["kw", "True"], ["", "})"]],
+      [],
+      [["kw", "for"], ["", " sprint "], ["kw", "in"], ["", " "], ["fn", "range"], ["", "("], ["str", "10"], ["", "):"]],
+      [["", "    asyncio."], ["fn", "run"], ["", "(Backlog(load())."], ["fn", "work"], ["", "(team))"]],
+      [],
+    ];
+    const TOK = { "": "#d7deea", cm: "#6d7892", kw: "#7fd6d8", fn: "#b7a6ff", str: "#f2c14e" };
+    const SNIP = SNIPPET.map(parts => parts.flatMap(([cls, text]) => [...text].map(ch => [cls, ch])));
+    let snipLine = 0, snipCol = 0, lineNo = 1, caretOn = true;
+    const done = [];
+    function drawCode() {
+      const g = codeCanvas.getContext("2d"), W = codeCanvas.width, H = codeCanvas.height;
+      g.fillStyle = "#1c2230"; g.fillRect(0, 0, W, H);
+      g.fillStyle = "#141925"; g.fillRect(0, 0, W, 34);
+      g.font = "600 17px 'JetBrains Mono', monospace"; g.fillStyle = "#d7deea"; g.fillText("main.py", 16, 23);
+      g.fillStyle = "#6d7892"; g.fillText("●", 104, 23);
+      g.font = "18px 'JetBrains Mono', monospace";
+      const lh = 26, rows = [...done, [lineNo, SNIP[snipLine].slice(0, snipCol), true]];
+      const first = Math.max(0, rows.length - 13);
+      rows.slice(first).forEach(([no, chars, cur], idx) => {
+        const y = 62 + idx * lh;
+        g.fillStyle = "#4d5670"; g.textAlign = "right"; g.fillText(no, 44, y); g.textAlign = "left";
+        let x = 60;
+        for (const [cls, ch] of chars) { g.fillStyle = TOK[cls]; g.fillText(ch, x, y); x += 10.85; }
+        if (cur && caretOn) { g.fillStyle = "#7fd6d8"; g.fillRect(x + 1, y - 17, 10, 21); }
+      });
+      codeTex.needsUpdate = true;
+    }
+    function typeChars(n) {
+      for (let k = 0; k < n; k++) {
+        if (snipCol >= SNIP[snipLine].length) {
+          done.push([lineNo++, SNIP[snipLine]]);
+          if (done.length > 14) done.shift();
+          snipLine = (snipLine + 1) % SNIP.length; snipCol = 0;
+          if (!SNIP[snipLine].length) continue;
+        }
+        snipCol++;
+      }
+      drawCode();
+    }
+    document.fonts?.ready.then(drawCode);
+    drawCode();
+
+    // ---- camera: auto orbit, drag to look ----
+    let yaw = 0.6, pitch = 0.5, dist = 6.5, targetDist = 6.5, idleT = 0;
+    const lookAt = new T.Vector3(0, 0.9, 0);
+    function placeCamera() {
+      camera.position.set(
+        lookAt.x + dist * Math.cos(pitch) * Math.sin(yaw),
+        lookAt.y + dist * Math.sin(pitch),
+        lookAt.z + dist * Math.cos(pitch) * Math.cos(yaw));
+      camera.lookAt(lookAt);
+    }
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false); camera.aspect = w / h;
+      camera.fov = w < 560 ? 55 : 42; camera.updateProjectionMatrix();
+    }
+    new ResizeObserver(resize).observe(stage); resize();
+
+    function sync() {
+      let maxR = 0;
+      GENERATORS.forEach((_, i) => {
+        const want = Math.min(S.owned[i], RINGS[i].cap), list = units[i];
+        while (list.length > want) scene.remove(list.pop());
+        while (list.length < want) {
+          const k = list.length, { r, cap } = RINGS[i];
+          const a = (k / cap) * Math.PI * 2 + i * 0.7 + (k % 2) * 0.08;
+          const u = FACTORIES[i]();
+          u.position.set(Math.sin(a) * r, 0, Math.cos(a) * r);
+          // Face the center of the office.
+          u.rotation.y = a + Math.PI;
+          u.userData.pop = 0; u.userData.phase = Math.random() * 6.28; u.userData.type = i;
+          u.scale.setScalar(0.001);
+          scene.add(u); list.push(u);
+          emit(u.position.clone().setY(1), 10, 0.6, 2);
+        }
+        if (want) maxR = Math.max(maxR, RINGS[i].r + (i >= 5 ? 1.5 : 0));
+      });
+      targetDist = Math.max(6.5, maxR * 1.45 + 3);
+    }
+
+    const tmp = new T.Vector3();
+    let lastFrame = performance.now(), emitAcc = 0, caretT = 0;
+    function frame(now, lpsNow) {
+      const dt = Math.min(0.05, (now - lastFrame) / 1000); lastFrame = now;
+      const t = now / 1000;
+      idleT += dt;
+      if (!reduceMotion && !drag && idleT > 2) yaw += dt * 0.07;
+      dist += (targetDist - dist) * Math.min(1, dt * 1.5);
+      lookAt.y = 0.9 + Math.min(1.5, (dist - 6.5) * 0.06);
+      // Look down more steeply as the office grows so outer buildings stay below the HUD.
+      const minPitch = Math.min(0.85, 0.35 + (dist - 6.5) * 0.025);
+      if (!drag && pitch < minPitch) pitch += (minPitch - pitch) * Math.min(1, dt * 2);
+      placeCamera();
+
+      for (const list of units) for (const u of list) {
+        const d = u.userData;
+        if (d.pop < 1) { d.pop = Math.min(1, d.pop + dt * 2.5); const s = 1 - Math.pow(1 - d.pop, 3); u.scale.setScalar(s * (d.type === 0 ? 0.9 : 1) + 0.001); }
+        if (reduceMotion) continue;
+        if (d.bob) {
+          const b = d.bob;
+          if (b.userData.baseY == null) b.userData.baseY = b.position.y;
+          b.position.y = b.userData.baseY + Math.sin(t * 6 + d.phase) * 0.015;
+        }
+        if (d.spin) { d.spin.rotation.y += dt * 1.2; d.spin.rotation.x += dt * 0.5; u.position.y = Math.sin(t * 1.5 + d.phase) * 0.15; }
+        if (d.leds) d.leds.forEach((l, j) => { l.visible = Math.sin(t * 4 + j * 1.7 + d.phase) > -0.3; });
+      }
+
+      // Emit glyphs from producers, roughly in proportion to their share of output.
+      if (!reduceMotion && lpsNow > 0) {
+        emitAcc += dt * Math.min(24, 2 + Math.log10(1 + lpsNow) * 4);
+        while (emitAcc >= 1) {
+          emitAcc--;
+          const shares = units.map((l, i) => l.length ? genRate(i) * S.owned[i] : 0);
+          let pick = Math.random() * shares.reduce((a, b) => a + b, 0), i = 0;
+          while (i < shares.length - 1 && (pick -= shares[i]) > 0) i++;
+          const list = units[i]; if (!list.length) continue;
+          const u = list[Math.floor(Math.random() * list.length)];
+          const h = i === 3 ? 2.3 : i === 5 ? 3 : i === 6 ? 5 : 1.3;
+          emit(tmp.copy(u.position).setY(u.position.y + h), 1, 0.3, 1.1);
+        }
+      }
+      for (const g of glyphs) {
+        if (!g.m.visible) continue;
+        g.life -= dt * 0.8;
+        if (g.life <= 0) { g.m.visible = false; continue; }
+        g.m.position.addScaledVector(g.v, dt);
+        g.v.y -= dt * 0.4;
+        g.m.rotation.y += dt;
+        g.m.material.opacity = Math.min(1, g.life * 2);
+      }
+      for (const k of keys) if (k.position.y < k.userData.rest) k.position.y = Math.min(k.userData.rest, k.position.y + dt * 0.08);
+
+      caretT += dt;
+      if (caretT > 0.5) { caretT = 0; caretOn = !caretOn; drawCode(); }
+      renderer.render(scene, camera);
+    }
+
+    function keystroke() {
+      for (let n = 0; n < 2; n++) keys[Math.floor(Math.random() * keys.length)].position.y -= 0.012;
+      typeChars(3 + Math.floor(Math.random() * 3));
+      emit(tmp.set(0, 1.55, -0.1), reduceMotion ? 0 : 3, 0.8, 1.6);
+      caretOn = true;
+    }
+    function screenPointOfDesk() {
+      const p = new T.Vector3(0, 1.6, -0.1).project(camera);
+      return { x: (p.x + 1) / 2 * stage.clientWidth, y: (1 - p.y) / 2 * stage.clientHeight };
+    }
+
+    // Drag to orbit; a short press counts as a keystroke.
+    let drag = null;
+    stage.addEventListener("pointerdown", e => {
+      stage.focus({ preventScroll: true });
+      drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: false, id: e.pointerId };
+    });
+    stage.addEventListener("pointermove", e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 6) {
+        drag.moved = true; stage.classList.add("dragging"); stage.setPointerCapture(e.pointerId);
+      }
+      if (drag.moved) {
+        yaw -= dx * 0.008; pitch = Math.max(0.12, Math.min(1.35, pitch + dy * 0.006)); idleT = 0;
+      }
+      drag.x = e.clientX; drag.y = e.clientY;
+    });
+    const endDrag = e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const wasClick = !drag.moved && e.type === "pointerup";
+      drag = null; stage.classList.remove("dragging");
+      if (wasClick) write(e.clientX, e.clientY);
+    };
+    stage.addEventListener("pointerup", endDrag);
+    stage.addEventListener("pointercancel", endDrag);
+    stage.addEventListener("wheel", e => {
+      e.preventDefault(); targetDist = Math.max(4, Math.min(40, targetDist * (1 + Math.sign(e.deltaY) * 0.1))); idleT = 0;
+    }, { passive: false });
+
+    return { frame, sync, keystroke, screenPointOfDesk };
+  })();
+
+  if (!World) {
+    const d = document.createElement("div"); d.className = "nogl";
+    d.textContent = "3D view unavailable in this browser. Click or tap here to write code.";
+    stage.appendChild(d);
+    stage.addEventListener("pointerdown", e => write(e.clientX, e.clientY));
   }
 
   // ---- actions ----
-  const editor = document.getElementById("editor");
   function write(x, y) {
     const gained = clickPower();
     S.clicks++; earn(gained);
-    typeChars(3 + Math.floor(Math.random() * 3));
-    const r = editor.getBoundingClientRect();
+    World?.keystroke();
+    const r = stage.getBoundingClientRect();
+    let px = x != null ? x - r.left : null, py = y != null ? y - r.top : null;
+    if (px == null) {
+      const p = World ? World.screenPointOfDesk() : { x: r.width / 2, y: r.height / 2 };
+      px = p.x; py = p.y;
+    }
     const f = document.createElement("div");
     f.className = "float"; f.textContent = "+" + fmt(gained);
-    f.style.left = (x != null ? x - r.left : r.width / 2) + "px";
-    f.style.top = (y != null ? y - r.top - 10 : r.height / 2) + "px";
-    editor.appendChild(f);
+    f.style.left = px + "px"; f.style.top = (py - 12) + "px";
+    stage.appendChild(f);
     setTimeout(() => f.remove(), 900);
     render();
   }
-  editor.addEventListener("pointerdown", e => { e.preventDefault(); editor.focus({ preventScroll: true }); write(e.clientX, e.clientY); });
-  editor.addEventListener("keydown", e => {
+  stage.addEventListener("keydown", e => {
     if (e.metaKey || e.ctrlKey || e.altKey || e.key === "Tab" || e.key === "Shift") return;
     e.preventDefault();
     if (!e.repeat) write();
@@ -403,28 +773,18 @@ button:disabled { cursor: not-allowed; }
     render();
   }));
 
-  const toastEl = document.getElementById("toast");
-  let toastTimer;
-  function toast(msg) {
-    toastEl.textContent = msg; clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { toastEl.textContent = ""; }, 6000);
-  }
-
-  // ---- rendering ----
-  const $ = id => document.getElementById(id);
+  // ---- panels ----
   const gensEl = $("gens"), upsEl = $("ups");
-
-  // Build generator buttons once; update their text each frame.
   const genBtns = GENERATORS.map((g, i) => {
     const b = document.createElement("button");
     b.type = "button"; b.className = "gen";
-    b.innerHTML = `<span class="gen-name"></span><span class="gen-owned"></span><span class="gen-meta"></span>`;
+    b.innerHTML = `<span class="swatch" style="background:${GEN_COLORS[i]}"></span><span class="gen-name"></span><span class="gen-owned"></span><span class="gen-meta"></span>`;
     b.addEventListener("click", () => {
       const p = plan(i, buyAmt);
       if (p.cost > S.lines) return;
       S.lines -= p.cost; S.owned[i] += p.n;
       toast(`Hired ${p.n} × ${g[0]} for ${fmt(p.cost)} lines.`);
-      save(); render();
+      World?.sync(); save(); render();
     });
     gensEl.appendChild(b);
     return b;
@@ -433,7 +793,7 @@ button:disabled { cursor: not-allowed; }
   let upsKey = "";
   function renderUps() {
     const avail = UPGRADES.filter(u => !has(u[0]) && S.lifetime >= u[3] * 0.25);
-    const key = avail.map(u => u[0]).join();
+    const key = avail.map(u => u[0]).join() + "|" + S.upgrades.join();
     if (key !== upsKey) {
       upsKey = key;
       upsEl.innerHTML = "";
@@ -462,10 +822,11 @@ button:disabled { cursor: not-allowed; }
   let shipConfirm = false, resetConfirm = false;
   function renderShip() {
     const gain = starsOnShip();
+    if (shipConfirm && !gain) shipConfirm = false;
     $("shipGain").textContent = `+${gain} ★`;
     $("meter").style.width = Math.min(100, (S.total / PRESTIGE_THRESHOLD) * 100) + "%";
     const area = $("shipArea");
-    const want = shipConfirm ? "confirm" : gain ? "ready" : "locked";
+    const want = shipConfirm ? "confirm" : "button";
     if (area.dataset.state !== want) {
       area.dataset.state = want;
       if (want === "confirm") {
@@ -473,9 +834,9 @@ button:disabled { cursor: not-allowed; }
         $("shipYes").onclick = () => {
           const g = starsOnShip(); if (!g) return;
           const keep = { stars: S.stars + g, lifetime: S.lifetime, clicks: S.clicks };
-          S = { ...fresh(), ...keep }; shipConfirm = false; upsKey = null;
+          S = { ...fresh(), ...keep }; shipConfirm = false;
           toast(`Shipped. +${g} Stars, production now +${Math.round(STAR_BONUS * 100 * S.stars)}%.`);
-          save(); render();
+          World?.sync(); save(); render();
         };
         $("shipNo").onclick = () => { shipConfirm = false; render(); };
       } else {
@@ -484,7 +845,6 @@ button:disabled { cursor: not-allowed; }
       }
     }
     const btn = $("shipBtn"); if (btn) btn.disabled = !gain;
-    if (shipConfirm && !gain) shipConfirm = false;
     $("stats").innerHTML = `<span>this run ${fmt(S.total)}</span><span>lifetime ${fmt(S.lifetime)}</span><span>keystrokes ${S.clicks.toLocaleString()}</span>`;
   }
 
@@ -496,23 +856,24 @@ button:disabled { cursor: not-allowed; }
     chip.hidden = !S.stars;
     chip.textContent = `${S.stars} ★ · +${Math.round(STAR_BONUS * 100 * S.stars)}%`;
 
-    let hiddenShown = false;
+    let lockedShown = false;
     GENERATORS.forEach((g, i) => {
       const b = genBtns[i];
       const locked = i > 0 && !S.owned[i] && !S.owned[i - 1] && S.lifetime < g[1] * 0.5;
+      const [sw, name, owned, meta] = b.children;
       if (locked) {
-        b.hidden = hiddenShown; hiddenShown = true;
+        b.hidden = lockedShown; lockedShown = true;
         b.disabled = true; b.classList.add("locked"); b.classList.remove("affordable");
-        b.children[0].textContent = "???"; b.children[1].textContent = "";
-        b.children[2].textContent = "keep writing to unlock";
+        sw.style.visibility = "hidden";
+        name.textContent = "???"; owned.textContent = ""; meta.textContent = "keep writing to unlock";
         return;
       }
-      b.hidden = false; b.classList.remove("locked");
+      b.hidden = false; b.classList.remove("locked"); sw.style.visibility = "";
       const p = plan(i, buyAmt), ok = p.cost <= S.lines;
       b.disabled = !ok; b.classList.toggle("affordable", ok);
-      b.children[0].textContent = g[0];
-      b.children[1].textContent = S.owned[i];
-      b.children[2].innerHTML = `<span class="cost">${buyAmt === 1 ? "" : "×" + p.n + " "}${fmt(p.cost)} lines</span><span>${fmt(genRate(i))}/s each</span>`;
+      name.textContent = g[0];
+      owned.textContent = S.owned[i];
+      meta.innerHTML = `<span class="cost">${buyAmt === 1 ? "" : "×" + p.n + " "}${fmt(p.cost)} lines</span><span>${fmt(genRate(i))}/s each</span>`;
       b.setAttribute("aria-label", `Hire ${p.n} ${g[0]} for ${fmt(p.cost)} lines. Owned ${S.owned[i]}.`);
     });
     renderUps();
@@ -527,25 +888,31 @@ button:disabled { cursor: not-allowed; }
       return;
     }
     resetConfirm = false; resetBtn.textContent = "Reset progress";
-    S = fresh(); upsKey = null; save(); toast("Progress wiped."); render();
+    S = fresh(); World?.sync(); save(); toast("Progress wiped."); render();
   });
 
   // ---- main loop ----
-  let last = performance.now(), lastSave = Date.now();
+  let last = performance.now(), lastSave = Date.now(), uiT = 0;
   function frame(now) {
     const dt = Math.min(1, (now - last) / 1000); last = now;
-    earn(lps() * dt);
-    render();
+    const rate = lps();
+    earn(rate * dt);
+    uiT += dt;
+    if (uiT > 0.1) { uiT = 0; render(); }
+    World?.frame(now, rate);
     if (Date.now() - lastSave > 10000) { save(); lastSave = Date.now(); }
     requestAnimationFrame(frame);
   }
   // Catch up when the tab was in the background (rAF pauses).
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) { save(); return; }
-    try { const d = JSON.parse(localStorage.getItem(SAVE_KEY)); if (d && d.savedAt) {
-      const away = Math.min((Date.now() - d.savedAt) / 1000, OFFLINE_CAP);
-      if (away > 1) earn(lps() * away);
-    } } catch (e) {}
+    try {
+      const d = JSON.parse(localStorage.getItem(SAVE_KEY));
+      if (d && d.savedAt) {
+        const away = Math.min((Date.now() - d.savedAt) / 1000, OFFLINE_CAP);
+        if (away > 1) earn(lps() * away);
+      }
+    } catch (e) {}
     last = performance.now();
   });
   addEventListener("pagehide", save);
@@ -553,8 +920,8 @@ button:disabled { cursor: not-allowed; }
   function start(hot) {
     if (hot && hot.state) S = hot.state;
     else { try { load(JSON.parse(localStorage.getItem(SAVE_KEY))); } catch (e) {} }
-    if (!S.lifetime) toast("Click the editor, or focus it and type, to write your first lines of code.");
-    drawCode(); render();
+    if (!S.lifetime) toast("Click the office, or focus it and type, to write your first lines of code.");
+    World?.sync(); render();
     requestAnimationFrame(frame);
   }
   window.claude?.hot?.snapshot?.(() => ({ state: S }));
